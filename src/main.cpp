@@ -6,7 +6,7 @@
 #include "esp32-hal-tinyusb.h"
 #include "USB.h"
 
-BLEMIDI_CREATE_INSTANCE("TSC-BleMidiPedal", MIDI)
+BLEMIDI_CREATE_INSTANCE("TSC MIDI Pedal", MIDI)
 
 namespace
 {
@@ -44,7 +44,7 @@ namespace
     }
 
     const uint8_t descriptor[] = {
-        TUD_MIDI_DESCRIPTOR(*interfaceNumber, tinyusb_add_string_descriptor("TSC-UsbMidiPedal"),
+        TUD_MIDI_DESCRIPTOR(*interfaceNumber, tinyusb_add_string_descriptor("TSC MIDI Pedal"),
                             endpoint, static_cast<uint8_t>(endpoint | 0x80), 64)};
     memcpy(buffer, descriptor, sizeof(descriptor));
     *interfaceNumber += 2;
@@ -90,6 +90,12 @@ void setup()
                                loadUsbMidiDescriptor) != ESP_OK)
   {
     log_e("Failed to register USB MIDI interface");
+    return;
+  }
+
+  if (!USB.productName("TSC MIDI Pedal"))
+  {
+    log_e("Failed to set USB product name");
     return;
   }
 
