@@ -3,11 +3,10 @@
 #include <BLEMIDI_Transport.h>
 #include <hardware/BLEMIDI_ESP32_NimBLE.h>
 #include <MIDI.h>
+#include "esp32-hal-tinyusb.h"
 #include "USB.h"
-#include "USBHIDKeyboard.h"
 
-BLEMIDI_CREATE_INSTANCE("TSC-MidiPedal", MIDI)
-USBHIDKeyboard Keyboard;
+BLEMIDI_CREATE_INSTANCE("TSC-BleMidiPedal", MIDI)
 
 namespace
 {
@@ -15,7 +14,7 @@ namespace
   constexpr uint8_t FOOTSWITCH_PIN5 = 5;
   constexpr uint8_t FOOTSWITCH_PIN6 = 6;
   constexpr uint8_t FOOTSWITCH_PIN7 = 7;
-  constexpr uint8_t FOOTSWITCH_PIN10 = 10; //Midi-USB switch
+  constexpr uint8_t MIDI_MODE_SWITCH_PIN = 10; // LOW selects USB MIDI.
   constexpr uint8_t MIDI_CHANNEL = 1;
   constexpr uint8_t PROGRAM_NUMBER0 = 0; // MIDI is zero-based; 0 is Program 01.
   constexpr uint8_t PROGRAM_NUMBER1 = 1; // MIDI is zero-based; 1 is Program 02.
@@ -23,7 +22,6 @@ namespace
   constexpr uint8_t PROGRAM_NUMBER3 = 3; // MIDI is zero-based; 3 is Program 04.
   constexpr unsigned long DEBOUNCE_MS = 30;
 
-  bool midiUsb;
   bool lastReading4;
   bool lastReading5;
   bool lastReading6;
@@ -36,6 +34,33 @@ namespace
   unsigned long lastChangeTime5;
   unsigned long lastChangeTime6;
   unsigned long lastChangeTime7;
+
+  uint16_t loadUsbMidiDescriptor(uint8_t *buffer, uint8_t *interfaceNumber)
+  {
+    const uint8_t endpoint = tinyusb_get_free_duplex_endpoint();
+    if (endpoint == 0)
+    {
+      return 0;
+    }
+
+    const uint8_t descriptor[] = {
+        TUD_MIDI_DESCRIPTOR(*interfaceNumber, tinyusb_add_string_descriptor("TSC-UsbMidiPedal"),
+                            endpoint, static_cast<uint8_t>(endpoint | 0x80), 64)};
+    memcpy(buffer, descriptor, sizeof(descriptor));
+    *interfaceNumber += 2;
+    return sizeof(descriptor);
+  }
+
+  void sendUsbProgramChange(uint8_t programNumber)
+  {
+    const uint8_t message[] = {
+        static_cast<uint8_t>(0xC0 | (MIDI_CHANNEL - 1)),
+        programNumber};
+    if (tud_midi_stream_write(0, message, sizeof(message)) != sizeof(message))
+    {
+      log_e("Failed to send USB MIDI program change");
+    }
+  }
 } // namespace
 
 void setup()
@@ -44,7 +69,7 @@ void setup()
   pinMode(FOOTSWITCH_PIN5, INPUT_PULLUP);
   pinMode(FOOTSWITCH_PIN6, INPUT_PULLUP);
   pinMode(FOOTSWITCH_PIN7, INPUT_PULLUP);
-  pinMode(FOOTSWITCH_PIN10, INPUT_PULLUP);
+  pinMode(MIDI_MODE_SWITCH_PIN, INPUT_PULLUP);
 
   lastReading4 = digitalRead(FOOTSWITCH_PIN4) == LOW;
   lastReading5 = digitalRead(FOOTSWITCH_PIN5) == LOW;
@@ -61,16 +86,25 @@ void setup()
   lastChangeTime6 = millis();
   lastChangeTime7 = millis();
 
-  Keyboard.begin();
-  USB.begin();  
-  MIDI.begin(MIDI_CHANNEL_OMNI);  
-  
+  if (tinyusb_enable_interface(USB_INTERFACE_MIDI, TUD_MIDI_DESC_LEN,
+                               loadUsbMidiDescriptor) != ESP_OK)
+  {
+    log_e("Failed to register USB MIDI interface");
+    return;
+  }
+
+  if (!USB.begin())
+  {
+    log_e("Failed to start USB");
+    return;
+  }
+  MIDI.begin(MIDI_CHANNEL_OMNI);
 }
 
 void loop()
 {
   MIDI.read();
-  midiUsb = digitalRead(FOOTSWITCH_PIN10) == LOW;
+  const bool usbMidi = digitalRead(MIDI_MODE_SWITCH_PIN) == LOW;
   const bool reading4 = digitalRead(FOOTSWITCH_PIN4) == LOW;
   const bool reading5 = digitalRead(FOOTSWITCH_PIN5) == LOW;
   const bool reading6 = digitalRead(FOOTSWITCH_PIN6) == LOW;
@@ -86,9 +120,9 @@ void loop()
     stablePressed4 = reading4;
     if (stablePressed4)
     {
-      if (midiUsb)
+      if (usbMidi)
       {
-        Keyboard.print("a");
+        sendUsbProgramChange(PROGRAM_NUMBER0);
       }
       else
       {
@@ -106,9 +140,9 @@ void loop()
     stablePressed5 = reading5;
     if (stablePressed5)
     {
-      if (midiUsb)
+      if (usbMidi)
       {
-        Keyboard.print("b");
+        sendUsbProgramChange(PROGRAM_NUMBER1);
       }
       else
       {
@@ -126,9 +160,9 @@ void loop()
     stablePressed6 = reading6;
     if (stablePressed6)
     {
-      if (midiUsb)
+      if (usbMidi)
       {
-        Keyboard.print("c");
+        sendUsbProgramChange(PROGRAM_NUMBER2);
       }
       else
       {
@@ -146,9 +180,9 @@ void loop()
     stablePressed7 = reading7;
     if (stablePressed7)
     {
-      if (midiUsb)
+      if (usbMidi)
       {
-        Keyboard.print("d");
+        sendUsbProgramChange(PROGRAM_NUMBER3);
       }
       else
       {
