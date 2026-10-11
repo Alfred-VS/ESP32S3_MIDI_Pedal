@@ -128,11 +128,11 @@ void loop()
     {
       if (usbMidi)
       {
-        sendUsbProgramChange(PROGRAM_NUMBER0);
+        sendUsbProgramChange(PROGRAM_NUMBER1);
       }
       else
       {
-        MIDI.sendProgramChange(PROGRAM_NUMBER0, MIDI_CHANNEL);
+        MIDI.sendProgramChange(PROGRAM_NUMBER1, MIDI_CHANNEL);
       }      
     }
   }
@@ -148,11 +148,11 @@ void loop()
     {
       if (usbMidi)
       {
-        sendUsbProgramChange(PROGRAM_NUMBER1);
+        sendUsbProgramChange(PROGRAM_NUMBER2);
       }
       else
       {
-        MIDI.sendProgramChange(PROGRAM_NUMBER1, MIDI_CHANNEL);
+        MIDI.sendProgramChange(PROGRAM_NUMBER2, MIDI_CHANNEL);
       }
     }
   }
@@ -168,11 +168,11 @@ void loop()
     {
       if (usbMidi)
       {
-        sendUsbProgramChange(PROGRAM_NUMBER2);
+        sendUsbProgramChange(PROGRAM_NUMBER3);
       }
       else
       {
-        MIDI.sendProgramChange(PROGRAM_NUMBER2, MIDI_CHANNEL);
+        MIDI.sendProgramChange(PROGRAM_NUMBER3, MIDI_CHANNEL);
       }
     }
   }
@@ -188,11 +188,11 @@ void loop()
     {
       if (usbMidi)
       {
-        sendUsbProgramChange(PROGRAM_NUMBER3);
+        sendUsbProgramChange(PROGRAM_NUMBER0);
       }
       else
       {
-        MIDI.sendProgramChange(PROGRAM_NUMBER3, MIDI_CHANNEL);
+        MIDI.sendProgramChange(PROGRAM_NUMBER0, MIDI_CHANNEL);
       }
     }
   }
